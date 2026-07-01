@@ -61,7 +61,7 @@
         const tempoInicial = performance.now();
 
         try {
-            const resposta = await fetch(`http://localhost:8081/api/v1/produtos/busca?q=${termo}`);
+            const resposta = await fetch(`http://localhost:8080/api/v1/produtos/busca?q=${termo}`);
             const produtos = await resposta.json();
 
             const tempoTotal = (performance.now() - tempoInicial).toFixed(0);
