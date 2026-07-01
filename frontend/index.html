@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Busca Inteligente - Autocomplete & Cache</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col items-center justify-start p-8 font-mono">
+
+<div class="max-w-2xl w-full bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-2xl mt-12">
+    <div class="border-b border-zinc-800 pb-4 mb-6">
+        <h1 class="text-xl font-bold text-sky-400 flex items-center gap-2">
+            🔍 Busca com Autocomplete & Cache
+        </h1>
+        <p class="text-xs text-zinc-400 mt-1">Estratégia Cache-Aside com Redis + Debounce no Frontend</p>
+    </div>
+
+    <div class="relative mb-4">
+        <input type="text" id="inputBusca" autocomplete="off" placeholder="Digite para buscar (ex: Notebook, Smartphone, Mouse)..."
+               class="w-full bg-black border border-zinc-700 rounded-lg px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-sky-500 transition-colors">
+        <div id="statusMétrica" class="absolute right-3 top-3.5 text-[10px] text-zinc-500">
+            Aguardando digitação...
+        </div>
+    </div>
+
+    <div id="containerResultados" class="bg-black border border-zinc-800 rounded-lg hidden overflow-hidden divide-y divide-zinc-900">
+    </div>
+</div>
+
+<script>
+    const inputBusca = document.getElementById('inputBusca');
+    const containerResultados = document.getElementById('containerResultados');
+    const statusMétrica = document.getElementById('statusMétrica');
+
+    let debounceTimer;
+
+    // Implementação do algoritmo de Debounce
+    inputBusca.addEventListener('input', () => {
+        const termo = inputBusca.value.trim();
+
+        // Limpa o temporizador anterior se o usuário continuar digitando rápido
+        clearTimeout(debounceTimer);
+
+        if (termo.length === 0) {
+            containerResultados.classList.add('hidden');
+            statusMétrica.innerText = "Aguardando digitação...";
+            return;
+        }
+
+        statusMétrica.innerText = "Digitando...";
+
+        // Só dispara a requisição após 300ms de pausa na digitação
+        debounceTimer = setTimeout(() => {
+            executarBusca(termo);
+        }, 300);
+    });
+
+    async function executarBusca(termo) {
+        statusMétrica.innerText = "Buscando...";
+        const tempoInicial = performance.now();
+
+        try {
+            const resposta = await fetch(`http://localhost:8081/api/v1/produtos/busca?q=${termo}`);
+            const produtos = await resposta.json();
+
+            const tempoTotal = (performance.now() - tempoInicial).toFixed(0);
+            statusMétrica.innerHTML = `⏱️ <span class="text-sky-400 font-bold">${tempoTotal}ms</span>`;
+
+            renderizarResultados(produtos);
+        } catch (erro) {
+            statusMétrica.innerText = "Erro na API";
+            console.error(erro);
+        }
+    }
+
+    function renderizarResultados(produtos) {
+        containerResultados.innerHTML = '';
+
+        if (produtos.length === 0) {
+            containerResultados.innerHTML = '<div class="p-4 text-xs text-zinc-500 italic">Nenhum produto encontrado.</div>';
+            containerResultados.classList.remove('hidden');
+            return;
+        }
+
+        produtos.forEach(p => {
+            const item = document.createElement('div');
+            item.className = 'p-3 hover:bg-zinc-900 transition-colors flex justify-between items-center text-xs';
+            item.innerHTML = `
+                <div>
+                    <span class="text-zinc-200 font-medium">${p.nome}</span>
+                    <span class="block text-[10px] text-zinc-500 mt-0.5">${p.categoria}</span>
+                </div>
+                <span class="text-emerald-400 font-bold">R$ ${p.preco.toFixed(2)}</span>
+            `;
+            containerResultados.appendChild(item);
+        });
+
+        containerResultados.classList.remove('hidden');
+    }
+</script>
+</body>
+</html>
